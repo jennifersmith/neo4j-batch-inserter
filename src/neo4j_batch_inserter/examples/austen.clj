@@ -23,12 +23,10 @@
               state2 (index-node-m node)]
               state2)))
 
-(defn execute [f]
-
-  (println "opening something")
-  ( (add-and-index f) {}))
-
 
 (defn import-data [database-path]
   (with-open  [inserter (create-batch-inserter database-path)]
-    (insert-node inserter (first (read-characters)))))
+    (let [
+          characters (get-index inserter :characters {:type :exact})
+          new-node-id     (insert-node inserter (first (read-characters)))]
+      (add characters new-node-id (first (read-characters))))))
