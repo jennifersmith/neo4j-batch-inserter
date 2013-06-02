@@ -71,3 +71,9 @@
   (fn [context ] 
     (let [from-node (from-node-lookup context) to-node (to-node-lookup context)]
       (insert-relationship context from-node to-node properties))))
+
+;;==== yes another layer====
+
+(defn insert-batch [store-dir {:keys [nodes relationships] :or {:nodes [] :relationships []}}]
+  (let [node-operations (map insert-node-operation nodes)]
+    (run-batch store-dir node-operations)))

@@ -15,8 +15,8 @@
   (if @neo-db
       (close @neo-db)))
 
-(defn run-and-return-db [& operations]
-  (core/run-batch @neo-dir operations)
+(defn run-and-return-db [data]
+  (core/insert-batch @neo-dir data)
   (swap! neo-db (constantly (neo-inspector @neo-dir)))
   @neo-db)
 
@@ -25,7 +25,7 @@
                      (after :facts (kill-neo-db)) ]
   (fact "inserts a node with given properties"
         (->
-         (core/insert-node-operation {:bah "Baza"})
-         (run-and-return-db)
+         (run-and-return-db
+          {:nodes [{:bah "blah"}]})
          (fetch-nodes))
-         => (contains {:bah "Baza"})))
+         => (contains {:bah "blah"})))
