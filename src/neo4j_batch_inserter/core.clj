@@ -66,8 +66,16 @@
 (defn insert-node-operation [properties]
   #(insert-node % properties))
 
+(defn stringize-key [keys]
+  (apply str (interpose "~" keys)))
+
+(defn lookup-by-id [index-name & lookup-keys]
+  (let [key (stringize-keys lookup-keys)
+        index (get-index context index-name {})]
+    #(get-index context)))
+
+
 (defn insert-relationship-operation [properties from-node-lookup to-node-lookup]
   (fn [context ] 
     (let [from-node (from-node-lookup context) to-node (to-node-lookup context)]
-      #(insert-relationship context from-node to-node properties)
-                  )))
+      (insert-relationship context from-node to-node properties))))

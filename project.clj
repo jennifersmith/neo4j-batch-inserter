@@ -4,12 +4,11 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.4.0"]
-                 [org.neo4j/neo4j "1.9.M03"]
+                 [org.neo4j/neo4j "1.9.RC2"]
                  [org.clojure/data.csv "0.1.2"]
-                 [org.neo4j.app/neo4j-server "1.9.M03"]
-                 [org.neo4j.app/neo4j-server "1.9.M03" :classifier "static-web"]
                  [org.clojure/tools.logging "0.2.3"]
-                 [org.clojure/algo.monads "0.1.0"]]
+                  [midje "1.5.1"]
+                  [me.raynes/fs "1.4.0" :scope "test"]]
   :repositories [["neo4j-snapshot-repository"
                   { :url "http://m2.neo4j.org/content/repositories/snapshots/"
                    :snapshots true
