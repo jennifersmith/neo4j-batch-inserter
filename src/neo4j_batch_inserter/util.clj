@@ -17,7 +17,7 @@
                      %)
                   s)))
 
-(defn- clojure-friendly-key [key]
+(defn clojure-friendly-key [key]
   (keyword (camel-to-dash key)))
 
 (defn- is-neo-friendly? [val]
@@ -31,3 +31,5 @@
 (defn create-hashmap [m]
   (new java.util.HashMap
        (zipmap (map neo-friendly-key (keys m)) (map neo-friendly-val (vals m)))))
+
+

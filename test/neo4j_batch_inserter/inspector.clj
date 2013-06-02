@@ -11,9 +11,9 @@
   (.shutdown neo-inspector))
 
 (defn node-to-map [node]
-  {:bah "Baz"})
+  (let [keys (.getPropertyKeys node) values (map #(.getProperty node %) keys)]
+    (zipmap (map clojure-friendly-key keys) values)))
 
 (defn fetch-nodes [inspector]
   (map node-to-map
-       (.getAllNodes inspector))
-)
+       (.getAllNodes inspector)))
