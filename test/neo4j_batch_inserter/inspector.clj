@@ -17,3 +17,9 @@
 (defn fetch-nodes [inspector]
   (map node-to-map
        (.getAllNodes inspector)))
+
+(defn fetch-from-index [inspector index query]
+  (let [index
+        (.. inspector index (forNodes index))]
+    (map node-to-map (iterator-seq
+                      (.query index query)))))

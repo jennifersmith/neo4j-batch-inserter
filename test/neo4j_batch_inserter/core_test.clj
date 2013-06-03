@@ -15,8 +15,8 @@
   (if @neo-db
       (close @neo-db)))
 
-(defn run-and-return-db [data]
-  (core/insert-batch @neo-dir data)
+(defn run-and-return-db [options data]
+  (core/insert-batch @neo-dir options data)
   (swap! neo-db (constantly (neo-inspector @neo-dir)))
   @neo-db)
 
@@ -26,6 +26,15 @@
   (fact "inserts a node with given properties"
         (->
          (run-and-return-db
+          {}
           {:nodes [{:bah "blah"}]})
          (fetch-nodes))
-         => (contains {:bah "blah"})))
+         => (contains {:bah "blah"}))
+
+  (fact "autoindexes the node with the specifier we give"
+        (->
+         (run-and-return-db
+          {:auto-indexing {:type-fn :type :id-fn :id}}
+          {:nodes [{:type "sock" :id "green"}]})
+         (fetch-from-index "sock" "id:Green"))
+        => [{:bah "blah"}]))

@@ -66,6 +66,9 @@
 (defn insert-node-operation [properties]
   #(insert-node % properties))
 
+(defn index-node-operation [node-id-fn]
+  (println "HAI" node-id-fn)
+  #(node-id-fn %))
 
 (defn insert-relationship-operation [properties from-node-lookup to-node-lookup]
   (fn [context ] 
@@ -74,6 +77,13 @@
 
 ;;==== yes another layer====
 
-(defn insert-batch [store-dir {:keys [nodes relationships] :or {:nodes [] :relationships []}}]
-  (let [node-operations (map insert-node-operation nodes)]
-    (run-batch store-dir node-operations)))
+(defn insert-batch [store-dir {:keys [auto-indexing]}
+                    {:keys [nodes relationships] :or {:nodes [] :relationships []}}]
+  (let [
+        node-fn (if (nil? auto-indexing)
+                  insert-node-operation
+                  (comp index-node-operation insert-node-operation ))
+        node-operations 
+        (map node-fn nodes)]
+    (run-batch store-dir  node-operations)))
+
