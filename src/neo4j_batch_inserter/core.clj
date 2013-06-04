@@ -12,7 +12,7 @@
   (insert-node [this node]))
 
 (defprotocol RelationshipInserter
-  (insert-relationship [this from-node to-node properties]))
+  (insert-relationship [this from-node to-node properties type]))
 
 (defprotocol Indexer
   (get-index [this index-name index-properties]))
@@ -33,9 +33,9 @@
    (insert-node [this node]
      (.createNode inserter (util/create-hashmap node)))
    RelationshipInserter
-   (insert-relationship [this from-node to-node {:keys [type properties] :or {:properties {}}}]
-     (let [rel-type (DynamicRelationshipType/withName type)]
-       (.createRelationship from-node to-node type (util/create-hashmap properties)  ))
+   (insert-relationship [this from-node to-node properties type]
+     (let [rel-type (DynamicRelationshipType/withName (util/neo-friendly-key type))]
+       (.createRelationship inserter from-node to-node rel-type (util/create-hashmap properties) ))
      )
   Indexer
   (get-index [this index-name index-properties]
@@ -56,6 +56,10 @@
         index-inserter (new LuceneBatchInserterIndexProvider inserter)]
     (new BatchInserterWrapper inserter index-inserter)))
 
+(defn add-to-index [index node-id properties]
+  (.add index node-id (util/create-hashmap properties))
+  node-id)
+
 ;;========
 
 (defn run-batch [store-dir operations]
@@ -64,16 +68,23 @@
       (operation batch-inserter))))
 
 (defn insert-node-operation [properties]
-  #(insert-node % properties))
+  #(let [ node-id ( insert-node % properties)]
+     [node-id properties]))
 
-(defn index-node-operation [node-id-fn]
-  (println "HAI" node-id-fn)
-  #(node-id-fn %))
+;; I am sure there is a better pattern for this shiz
 
-(defn insert-relationship-operation [properties from-node-lookup to-node-lookup]
-  (fn [context ] 
+(defn index-node-operation [{:keys [type-fn id-fn]} node-id-fn]
+  #(let [[node-id properties] (node-id-fn %)
+         external-id (id-fn properties)
+         index (get-index % (type-fn properties) {:type :exact})]
+     (println node-id " here")
+     (add-to-index index node-id {:id external-id})))
+
+(defn insert-relationship-operation [from-node-lookup to-node-lookup properties type]
+  (fn [context] 
     (let [from-node (from-node-lookup context) to-node (to-node-lookup context)]
-      (insert-relationship context from-node to-node properties))))
+      (println from-node-lookup)
+      (insert-relationship context from-node to-node properties type))))
 
 ;;==== yes another layer====
 
@@ -82,8 +93,10 @@
   (let [
         node-fn (if (nil? auto-indexing)
                   insert-node-operation
-                  (comp index-node-operation insert-node-operation ))
+                  (comp #(index-node-operation auto-indexing %) insert-node-operation ))
+        rel-fn (fn [{:keys [properties from to type]}] (insert-relationship-operation (node-fn from) (node-fn to) properties type))
         node-operations 
-        (map node-fn nodes)]
-    (run-batch store-dir  node-operations)))
+        (map node-fn nodes)
+        relationship-operations (map rel-fn relationships)]
+    (run-batch store-dir (concat node-operations relationship-operations))))
 

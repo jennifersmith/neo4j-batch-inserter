@@ -20,6 +20,7 @@
   (swap! neo-db (constantly (neo-inspector @neo-dir)))
   @neo-db)
 
+
 (with-state-changes [
                      (before :facts (create-neo-dir))
                      (after :facts (kill-neo-db)) ]
@@ -36,5 +37,13 @@
          (run-and-return-db
           {:auto-indexing {:type-fn :type :id-fn :id}}
           {:nodes [{:type "sock" :id "green"}]})
-         (fetch-from-index "sock" "id:Green"))
-        => [{:bah "blah"}]))
+         (fetch-from-index "sock" "id:green"))
+        => [{:type "sock" :id "green"}])
+  (fact "able to add a relationship to a newly created node"
+    (->
+     (run-and-return-db
+      {:auto-indexing {:type-fn (constantly "default") :id-fn :id}
+       :relationships {:type-fn :type}}
+      {:relationships [{:from {:id "sock"} :to {:id "foot"} :type :goes-on :properties { :validity "awesome"}}]})
+     (fetch-relationships))
+    => (contains {:from {:id "sock"} :to {:id "foot"} :type :goes-on :properties { :validity "awesome"}})))
