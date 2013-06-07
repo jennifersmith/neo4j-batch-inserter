@@ -19,14 +19,19 @@
 
 (defprotocol Index
   (set-cache-capacity [this field-name size])
-  (add [this node-id properties]))
+  (add [this node-id properties])
+  (read-value [this key value]))
 
 (defrecord LuceneIndex [index]
   Index
   (add [this node-id properties]
     (.add index node-id (util/create-hashmap properties)))
   (set-cache-capacity [this field-name size]
-    (.setCacheCapacity index (util/neo-friendly-key field-name) size)))
+    (.setCacheCapacity index (util/neo-friendly-key field-name) size))
+  (read-value [this key value] 
+    (.. index 
+        (get (util/neo-friendly-key key) (cast Object value))
+        (getSingle))))
 
 (defrecord BatchInserterWrapper [inserter index-inserter]
    NodeInserter
@@ -60,6 +65,7 @@
   (.add index node-id (util/create-hashmap properties))
   node-id)
 
+
 ;;========
 
 (defn run-batch [store-dir operations]
@@ -73,27 +79,45 @@
 
 ;; I am sure there is a better pattern for this shiz
 
-(defn index-node-operation [{:keys [type-fn id-fn]} node-id-fn]
-  #(let [[node-id properties] (node-id-fn %)
-         external-id (id-fn properties)
-         index (get-index % (type-fn properties) {:type :exact})]
-     (println node-id " here")
-     (add-to-index index node-id {:id external-id})))
+
+(defn get-or-create-node-operation [lookup-fn create-fn]
+  #(or (lookup-fn %) (create-fn %)))
 
 (defn insert-relationship-operation [from-node-lookup to-node-lookup properties type]
   (fn [context] 
     (let [from-node (from-node-lookup context) to-node (to-node-lookup context)]
-      (println from-node-lookup)
       (insert-relationship context from-node to-node properties type))))
 
+
+
+(defn create-node-map [{:keys [id-fn type-fn]} nodes] 
+ (zipmap (map id-fn nodes) (map type-fn nodes)))
+
+(defn index-node-operation [{:keys [type-fn id-fn]} node-map node-id-fn]
+  (fn [context] (let [[node-id properties] (node-id-fn context)
+                      external-id (id-fn properties)
+                      index (get-index context (type-fn properties) {:type :exact})]
+                  (swap! node-map #(assoc % external-id node-id))
+
+                  (add-to-index index node-id {:id external-id}))))
+
+(defn lookup-node-operation [{:keys [id-fn type-fn]} node-map properties]
+  #(let [
+         index (get-index % (type-fn properties) {:type :exact})]
+     (or 
+      (@node-map (id-fn properties))
+      (read-value index :id (id-fn properties)))))
 ;;==== yes another layer====
 
 (defn insert-batch [store-dir {:keys [auto-indexing]}
                     {:keys [nodes relationships] :or {:nodes [] :relationships []}}]
   (let [
-        node-fn (if (nil? auto-indexing)
-                  insert-node-operation
-                  (comp #(index-node-operation auto-indexing %) insert-node-operation ))
+        ; This is so dodgy - need to maange state better
+        node-map (atom {})
+        node-fn #(get-or-create-node-operation 
+                 
+                  (lookup-node-operation auto-indexing node-map %) 
+                  (index-node-operation auto-indexing node-map (insert-node-operation %)))
         rel-fn (fn [{:keys [properties from to type]}] (insert-relationship-operation (node-fn from) (node-fn to) properties type))
         node-operations 
         (map node-fn nodes)

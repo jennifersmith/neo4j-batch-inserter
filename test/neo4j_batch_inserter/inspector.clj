@@ -15,6 +15,8 @@
   (let [keys (.getPropertyKeys node) values (map #(.getProperty node %) keys)]
     (zipmap (map clojure-friendly-key keys) values)))
 
+(def node-to-map propertycontainer-to-map)
+
 (defn relationship-to-map [relationship]
   { :properties (propertycontainer-to-map relationship)
    :type (clojure-friendly-key (.. relationship getType name))

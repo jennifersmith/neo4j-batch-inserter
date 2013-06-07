@@ -27,8 +27,8 @@
   (fact "inserts a node with given properties"
         (->
          (run-and-return-db
-          {}
-          {:nodes [{:bah "blah"}]})
+          {:auto-indexing {:type-fn (constantly "foo") :id-fn :bah}}
+          {:nodes [{:bah "blah" }]})
          (fetch-nodes))
          => (contains {:bah "blah"}))
 
@@ -46,4 +46,12 @@
        :relationships {:type-fn :type}}
       {:relationships [{:from {:id "sock"} :to {:id "foot"} :type :goes-on :properties { :validity "awesome"}}]})
      (fetch-relationships))
-    => (contains {:from {:id "sock"} :to {:id "foot"} :type :goes-on :properties { :validity "awesome"}})))
+    => (contains {:from {:id "sock"} :to {:id "foot"} :type :goes-on :properties { :validity "awesome"}}))
+    (fact "able to add a relationship to a node created as part of the payload"
+    (->
+     (run-and-return-db
+      {:auto-indexing {:type-fn (constantly "default") :id-fn :id}
+       :relationships {:type-fn :type}}
+      {:nodes [{:id "sock" :color "blue"}] :relationships [{:from {:id "sock"} :to {:id "foot"} :type :goes-on :properties { :validity "awesome"}}]})
+     (fetch-relationships))
+    => (contains {:from {:id "sock" :color "blue"} :to {:id "foot"} :type :goes-on :properties { :validity "awesome"}})))
