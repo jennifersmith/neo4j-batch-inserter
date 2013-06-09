@@ -16,7 +16,9 @@
       (close @neo-db)))
 
 (defn run-and-return-db [options data]
-  (core/insert-batch @neo-dir options data)
+  (println
+   "Batch insert results"
+   (core/insert-batch @neo-dir options data))
   (swap! neo-db (constantly (neo-inspector @neo-dir)))
   @neo-db)
 
@@ -28,9 +30,9 @@
         (->
          (run-and-return-db
           {:auto-indexing {:type-fn (constantly "foo") :id-fn :bah}}
-          {:nodes [{:bah "blah" }]})
+          {:nodes [{:bah "blah" :foo "bar"}]})
          (fetch-nodes))
-         => (contains {:bah "blah"}))
+         => (contains {:bah "blah" :foo "bar"}))
 
   (fact "autoindexes the node with the specifier we give"
         (->
@@ -39,6 +41,7 @@
           {:nodes [{:type "sock" :id "green"}]})
          (fetch-from-index "sock" "id:green"))
         => [{:type "sock" :id "green"}])
+
   (fact "able to add a relationship to a newly created node"
     (->
      (run-and-return-db

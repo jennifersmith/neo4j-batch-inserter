@@ -8,7 +8,8 @@
                  [org.clojure/data.csv "0.1.2"]
                  [org.clojure/tools.logging "0.2.3"]
                   [midje "1.5.1"]
-                  [me.raynes/fs "1.4.0" :scope "test"]]
+                  [me.raynes/fs "1.4.0" :scope "test"]
+                  [com.taoensso/timbre "2.1.2"]]
   :repositories [["neo4j-snapshot-repository"
                   { :url "http://m2.neo4j.org/content/repositories/snapshots/"
                    :snapshots true

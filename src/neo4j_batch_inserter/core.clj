@@ -1,5 +1,7 @@
 (ns neo4j-batch-inserter.core
-  (:require [neo4j-batch-inserter.util :as util])
+  (:require [neo4j-batch-inserter.util :as util]
+            [taoensso.timbre :as timbre
+             :refer (trace debug info warn error fatal spy)])
   (:import
    (java.io Closeable)
    (org.neo4j.graphdb DynamicRelationshipType )
@@ -68,14 +70,19 @@
 
 ;;========
 
+(defn inc-results [batch-results key]
+  (swap! batch-results #(merge-with + % {key 1})))
+
 (defn run-batch [store-dir operations]
   (with-open [batch-inserter (create-batch-inserter store-dir)]
     (doseq [operation operations]
       (operation batch-inserter))))
 
-(defn insert-node-operation [properties]
-  #(let [ node-id ( insert-node % properties)]
-     [node-id properties]))
+(defn insert-node-operation [batch-results node]
+  (fn [context]
+    (let [ node-id (insert-node context node)]
+      (inc-results batch-results :nodes-inserted)
+       [node-id node])))
 
 ;; I am sure there is a better pattern for this shiz
 
@@ -83,30 +90,35 @@
 (defn get-or-create-node-operation [lookup-fn create-fn]
   #(or (lookup-fn %) (create-fn %)))
 
-(defn insert-relationship-operation [from-node-lookup to-node-lookup properties type]
+(defn insert-relationship-operation [batch-results from-node-lookup to-node-lookup properties type]
   (fn [context] 
-    (let [from-node (from-node-lookup context) to-node (to-node-lookup context)]
-      (insert-relationship context from-node to-node properties type))))
+    (let [from-node (from-node-lookup context) to-node (to-node-lookup context)
+          result       (insert-relationship context from-node to-node properties type)]
+      (inc-results batch-results :relationships-inserted)
+      result)))
 
 
 
 (defn create-node-map [{:keys [id-fn type-fn]} nodes] 
  (zipmap (map id-fn nodes) (map type-fn nodes)))
 
-(defn index-node-operation [{:keys [type-fn id-fn]} node-map node-id-fn]
+(defn index-node-operation [batch-results {:keys [type-fn id-fn]} node-map node-id-fn]
   (fn [context] (let [[node-id properties] (node-id-fn context)
                       external-id (id-fn properties)
-                      index (get-index context (type-fn properties) {:type :exact})]
+                      index (get-index context (type-fn properties) {:type :exact})
+                      result (add-to-index index node-id {:id external-id})]
                   (swap! node-map #(assoc % external-id node-id))
+                  (inc-results batch-results :nodes-indexed)
+                  result)))
 
-                  (add-to-index index node-id {:id external-id}))))
-
-(defn lookup-node-operation [{:keys [id-fn type-fn]} node-map properties]
+(defn lookup-node-operation [ batch-results {:keys [id-fn type-fn]} node-map properties]
   #(let [
          index (get-index % (type-fn properties) {:type :exact})]
+     (inc-results batch-results :nodes-looked-up)
      (or 
       (@node-map (id-fn properties))
       (read-value index :id (id-fn properties)))))
+
 ;;==== yes another layer====
 
 (defn insert-batch [store-dir {:keys [auto-indexing]}
@@ -114,13 +126,15 @@
   (let [
         ; This is so dodgy - need to maange state better
         node-map (atom {})
+        batch-results (atom {})
         node-fn #(get-or-create-node-operation 
-                 
-                  (lookup-node-operation auto-indexing node-map %) 
-                  (index-node-operation auto-indexing node-map (insert-node-operation %)))
-        rel-fn (fn [{:keys [properties from to type]}] (insert-relationship-operation (node-fn from) (node-fn to) properties type))
+                  (lookup-node-operation batch-results auto-indexing node-map %
+                                         ) 
+                  (index-node-operation batch-results auto-indexing node-map (insert-node-operation batch-results %)))
+        rel-fn (fn [{:keys [properties from to type]}] (insert-relationship-operation batch-results (node-fn from) (node-fn to) properties type))
         node-operations 
         (map node-fn nodes)
         relationship-operations (map rel-fn relationships)]
-    (run-batch store-dir (concat node-operations relationship-operations))))
+    (run-batch store-dir (concat node-operations relationship-operations))
+    batch-results))
 
