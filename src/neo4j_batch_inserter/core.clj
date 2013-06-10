@@ -1,10 +1,10 @@
 (ns neo4j-batch-inserter.core
   (:require [neo4j-batch-inserter.util :as util]
-            [taoensso.timbre :as timbre
-             :refer (trace debug info warn error fatal spy)])
+            [clojure.tools.logging :as log])
+
   (:import
    (java.io Closeable)
-   (org.neo4j.graphdb DynamicRelationshipType )
+   (org.neo4j.graphdb DynamicRelationshipType Label )
    (org.neo4j.kernel EmbeddedGraphDatabase)
    (org.neo4j.unsafe.batchinsert BatchInserters
                                  BatchInserter)
@@ -38,7 +38,7 @@
 (defrecord BatchInserterWrapper [inserter index-inserter]
    NodeInserter
    (insert-node [this node]
-     (.createNode inserter (util/create-hashmap node)))
+     (.createNode inserter (util/create-hashmap node) (make-array Label 0))) ;; TODO: Use labels!
    RelationshipInserter
    (insert-relationship [this from-node to-node properties type]
      (let [rel-type (DynamicRelationshipType/withName (util/neo-friendly-key type))]
@@ -96,8 +96,6 @@
           result       (insert-relationship context from-node to-node properties type)]
       (inc-results batch-results :relationships-inserted)
       result)))
-
-
 
 (defn create-node-map [{:keys [id-fn type-fn]} nodes] 
  (zipmap (map id-fn nodes) (map type-fn nodes)))
