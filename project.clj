@@ -4,7 +4,7 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.5.1"]
-                 [org.neo4j/neo4j "2.0.0-M03" :scope "test"]
+                 [org.neo4j/neo4j "1.9" :scope "test"]
                  [org.clojure/data.csv "0.1.2"]
                  [org.clojure/tools.logging "0.2.3"]
                   [midje "1.5.1"]

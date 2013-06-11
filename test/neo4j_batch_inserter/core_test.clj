@@ -2,6 +2,7 @@
   (:use midje.sweet)
   (:use neo4j-batch-inserter.inspector)
   (:use [me.raynes.fs :only [temp-dir]])
+
   (:require [neo4j-batch-inserter.core :as core]))
 
 (def neo-dir (atom nil))
@@ -45,11 +46,11 @@
   (fact "able to add a relationship to a newly created node"
     (->
      (run-and-return-db
-      {:auto-indexing {:type-fn (constantly "default") :id-fn :id}
+      {:auto-indexing {:type-fn :type :id-fn :id}
        :relationships {:type-fn :type}}
-      {:relationships [{:from {:id "sock"} :to {:id "foot"} :type :goes-on :properties { :validity "awesome"}}]})
+      {:relationships [{:from {:id "sock" :type "clothing"} :to {:id "foot" :type "bodypart"} :type :goes-on :properties { :validity "awesome"}}]})
      (fetch-relationships))
-    => (contains {:from {:id "sock"} :to {:id "foot"} :type :goes-on :properties { :validity "awesome"}}))
+    => (contains {:from {:id "sock" :type "clothing"} :to {:id "foot" :type "bodypart"} :type :goes-on :properties { :validity "awesome"}}))
     (fact "able to add a relationship to a node created as part of the payload"
     (->
      (run-and-return-db

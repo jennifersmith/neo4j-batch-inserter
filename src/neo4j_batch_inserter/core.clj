@@ -4,7 +4,7 @@
 
   (:import
    (java.io Closeable)
-   (org.neo4j.graphdb DynamicRelationshipType Label )
+   (org.neo4j.graphdb DynamicRelationshipType )
    (org.neo4j.kernel EmbeddedGraphDatabase)
    (org.neo4j.unsafe.batchinsert BatchInserters
                                  BatchInserter)
@@ -38,7 +38,7 @@
 (defrecord BatchInserterWrapper [inserter index-inserter]
    NodeInserter
    (insert-node [this node]
-     (.createNode inserter (util/create-hashmap node) (make-array Label 0))) ;; TODO: Use labels!
+     (.createNode inserter (util/create-hashmap node))) ;; TODO: Use labels!
    RelationshipInserter
    (insert-relationship [this from-node to-node properties type]
      (let [rel-type (DynamicRelationshipType/withName (util/neo-friendly-key type))]
