@@ -97,10 +97,10 @@
       (inc-results batch-results :relationships-inserted)
       result)))
 
-(defn create-node-map [{:keys [id-fn type-fn]} nodes] 
+(defn create-node-map [{:keys [id-fn type-fn] :or {type-fn :type id-fn :id}} nodes] 
  (zipmap (map id-fn nodes) (map type-fn nodes)))
 
-(defn index-node-operation [batch-results {:keys [type-fn id-fn]} node-map node-id-fn]
+(defn index-node-operation [batch-results {:keys [type-fn id-fn] :or {type-fn :type id-fn :id}} node-map node-id-fn]
   (fn [context] (let [[node-id properties] (node-id-fn context)
                       external-id (id-fn properties)
                       index (get-index context (type-fn properties) {:type :exact})
@@ -109,7 +109,7 @@
                   (inc-results batch-results :nodes-indexed)
                   result)))
 
-(defn lookup-node-operation [ batch-results {:keys [id-fn type-fn]} node-map properties]
+(defn lookup-node-operation [ batch-results {:keys [id-fn type-fn] :or {type-fn :type id-fn :id}} node-map properties]
   #(let [
          index (get-index % (type-fn properties) {:type :exact})]
      (inc-results batch-results :nodes-looked-up)
@@ -117,11 +117,16 @@
       (@node-map (id-fn properties))
       (read-value index :id (id-fn properties)))))
 
+(defn node-validity [{:keys [id-fn type-fn] :or {type-fn :type id-fn :id}} node]
+  (cond (nil? (type-fn node)) :invalid
+        (nil? (id-fn node)) :invalid
+        :else :valid))
 ;;==== yes another layer====
 
-(defn insert-batch [store-dir {:keys [auto-indexing]}
+(defn insert-batch [store-dir {:keys [auto-indexing] }
                     {:keys [nodes relationships] :or {:nodes [] :relationships []}}]
   (let [
+        {valid-nodes :valid invalid-nodes :invalid} (group-by #(node-validity auto-indexing %) nodes)
         ; This is so dodgy - need to maange state better
         node-map (atom {})
         batch-results (atom {})
@@ -131,8 +136,9 @@
                   (index-node-operation batch-results auto-indexing node-map (insert-node-operation batch-results %)))
         rel-fn (fn [{:keys [properties from to type]}] (insert-relationship-operation batch-results (node-fn from) (node-fn to) properties type))
         node-operations 
-        (map node-fn nodes)
+        (map node-fn valid-nodes)
         relationship-operations (map rel-fn relationships)]
+    ;; todo: this is dreadful - merge both these functions together and rethink
     (run-batch store-dir (concat node-operations relationship-operations))
-    batch-results))
+(assoc @batch-results :invalid-nodes (count invalid-nodes))))
 

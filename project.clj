@@ -10,8 +10,4 @@
                   [midje "1.5.1"]
                   [me.raynes/fs "1.4.0" :scope "test"]
                   [org.clojure/tools.logging "0.2.6"]]
-  :repositories [["neo4j-snapshot-repository"
-                  { :url "http://m2.neo4j.org/content/repositories/snapshots/"
-                   :snapshots true
-                   :releases false}]]
   :jvm-opts ["-Xmx2g"])

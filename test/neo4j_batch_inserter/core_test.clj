@@ -16,10 +16,13 @@
   (if @neo-db
       (close @neo-db)))
 
+(defn run-batch [options data]
+     (core/insert-batch @neo-dir options data))
+
 (defn run-and-return-db [options data]
   (println
    "Batch insert results"
-   (core/insert-batch @neo-dir options data))
+   (run-batch options data))
   (swap! neo-db (constantly (neo-inspector @neo-dir)))
   @neo-db)
 
@@ -38,7 +41,7 @@
   (fact "autoindexes the node with the specifier we give"
         (->
          (run-and-return-db
-          {:auto-indexing {:type-fn :type :id-fn :id}}
+          {}
           {:nodes [{:type "sock" :id "green"}]})
          (fetch-from-index "sock" "id:green"))
         => [{:type "sock" :id "green"}])
@@ -46,16 +49,26 @@
   (fact "able to add a relationship to a newly created node"
     (->
      (run-and-return-db
-      {:auto-indexing {:type-fn :type :id-fn :id}
-       :relationships {:type-fn :type}}
-      {:relationships [{:from {:id "sock" :type "clothing"} :to {:id "foot" :type "bodypart"} :type :goes-on :properties { :validity "awesome"}}]})
+      {}
+      {:relationships [
+                       {:from {:id "sock" :type "clothing"} 
+                        :to {:id "foot" :type "bodypart"} 
+                        :type :goes-on 
+                        :properties { :validity "awesome"}}]})
      (fetch-relationships))
-    => (contains {:from {:id "sock" :type "clothing"} :to {:id "foot" :type "bodypart"} :type :goes-on :properties { :validity "awesome"}}))
+    => (contains {:from {:id "sock" :type "clothing"} 
+                  :to {:id "foot" :type "bodypart"} 
+                  :type :goes-on 
+                  :properties { :validity "awesome"}}))
     (fact "able to add a relationship to a node created as part of the payload"
     (->
      (run-and-return-db
-      {:auto-indexing {:type-fn (constantly "default") :id-fn :id}
-       :relationships {:type-fn :type}}
+      {:auto-indexing {:type-fn (constantly "default") :id-fn :id}}
       {:nodes [{:id "sock" :color "blue"}] :relationships [{:from {:id "sock"} :to {:id "foot"} :type :goes-on :properties { :validity "awesome"}}]})
      (fetch-relationships))
-    => (contains {:from {:id "sock" :color "blue"} :to {:id "foot"} :type :goes-on :properties { :validity "awesome"}})))
+    => (contains {:from {:id "sock" :color "blue"} :to {:id "foot"} :type :goes-on :properties { :validity "awesome"}}))
+    (fact "Flags errors for nodes that evaluate to nil types and ids"
+      (run-batch {} {:nodes [{:hello 1}]}) => {:invalid-nodes 1})
+    (fact "Flags errors for relationships that evaluate to nil types"
+      (+ 1 2) => 44))
+
