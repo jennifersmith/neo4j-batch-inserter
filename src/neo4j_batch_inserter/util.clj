@@ -5,7 +5,7 @@
   (let [[first & remaining] (string/split s #"-")]
     (apply str (cons first (map string/capitalize remaining)))))
 
-o(defn neo-friendly-key [key]
+(defn neo-friendly-key [key]
   (-> key
       (name)
       (lower-camel)))
