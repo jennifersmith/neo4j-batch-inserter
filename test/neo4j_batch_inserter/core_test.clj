@@ -2,15 +2,15 @@
   (:use midje.sweet)
   (:use neo4j-batch-inserter.inspector)
   (:use [me.raynes.fs :only [temp-dir]])
-
-  (:require [neo4j-batch-inserter.core :as core]))
+  (:require [neo4j-batch-inserter.core :as core]
+            [clojure.tools.logging :refer [info]]))
 
 (def neo-dir (atom nil))
 (def neo-db (atom nil))
 
 (defn create-neo-dir []
   (swap! neo-dir (constantly (.getAbsolutePath (temp-dir "neo4j-batch-inserter"))))
-  (println "Creating Neo4j Store directory: " @neo-dir ))
+  (info "Creating Neo4j Store directory: " @neo-dir ))
 
 (defn kill-neo-db []
   (if @neo-db
@@ -20,7 +20,7 @@
      (core/insert-batch @neo-dir options data))
 
 (defn run-and-return-db [options data]
-  (println
+  (info
    "Batch insert results"
    (run-batch options data))
   (swap! neo-db (constantly (neo-inspector @neo-dir)))
@@ -63,12 +63,12 @@
     (fact "able to add a relationship to a node created as part of the payload"
     (->
      (run-and-return-db
-      {:auto-indexing {:type-fn (constantly "default") :id-fn :id}}
+      {:auto-indexing {:type-fn (constantly "default")}}
       {:nodes [{:id "sock" :color "blue"}] :relationships [{:from {:id "sock"} :to {:id "foot"} :type :goes-on :properties { :validity "awesome"}}]})
      (fetch-relationships))
     => (contains {:from {:id "sock" :color "blue"} :to {:id "foot"} :type :goes-on :properties { :validity "awesome"}}))
     (fact "Flags errors for nodes that evaluate to nil types and ids"
-      (run-batch {} {:nodes [{:hello 1}]}) => {:invalid-nodes 1})
+      (run-batch {} {:nodes [{:hello 1}]}) => (contains {:invalid-nodes 1}))
     (fact "Flags errors for relationships that evaluate to nil types"
-      (+ 1 2) => 44))
+      (run-batch {} {:relationships [{:from {:id 1 :type :foo} :to {:id 2 :type :foo}}]}) => (contains {:invalid-relationships 1})))
 

@@ -121,12 +121,18 @@
   (cond (nil? (type-fn node)) :invalid
         (nil? (id-fn node)) :invalid
         :else :valid))
+
+(defn relationship-validity [autoindexing {:keys [to from] :as relationship}]
+  (cond (nil? (:type relationship)) :invalid
+        :else :valid))
+
 ;;==== yes another layer====
 
 (defn insert-batch [store-dir {:keys [auto-indexing] }
                     {:keys [nodes relationships] :or {:nodes [] :relationships []}}]
   (let [
         {valid-nodes :valid invalid-nodes :invalid} (group-by #(node-validity auto-indexing %) nodes)
+        {valid-relationships :valid invalid-relationships :invalid} (group-by #(relationship-validity auto-indexing %) relationships)
         ; This is so dodgy - need to maange state better
         node-map (atom {})
         batch-results (atom {})
@@ -137,8 +143,8 @@
         rel-fn (fn [{:keys [properties from to type]}] (insert-relationship-operation batch-results (node-fn from) (node-fn to) properties type))
         node-operations 
         (map node-fn valid-nodes)
-        relationship-operations (map rel-fn relationships)]
+        relationship-operations (map rel-fn valid-relationships)]
     ;; todo: this is dreadful - merge both these functions together and rethink
     (run-batch store-dir (concat node-operations relationship-operations))
-(assoc @batch-results :invalid-nodes (count invalid-nodes))))
+(assoc @batch-results :invalid-nodes (count invalid-nodes) :invalid-relationships (count invalid-relationships))))
 
