@@ -64,7 +64,8 @@
     (->
      (run-and-return-db
       {:auto-indexing {:type-fn (constantly "default")}}
-      {:nodes [{:id "sock" :color "blue"}] :relationships [{:from {:id "sock"} :to {:id "foot"} :type :goes-on :properties { :validity "awesome"}}]})
+      {:nodes [{:id "sock" :color "blue"}] 
+       :relationships [{:from {:id "sock"} :to {:id "foot"} :type :goes-on :properties { :validity "awesome"}}]})
      (fetch-relationships))
     => (contains {:from {:id "sock" :color "blue"} :to {:id "foot"} :type :goes-on :properties { :validity "awesome"}}))
     (fact "Flags errors for nodes that evaluate to nil types and ids"
